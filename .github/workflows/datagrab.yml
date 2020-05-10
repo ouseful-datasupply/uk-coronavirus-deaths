@@ -45,5 +45,5 @@ jobs:
       run: |-
         datasette publish now nhs_dailies.db \
           --token $NOW_TOKEN \
-          --project nhs-ods \
+          --project uk-cv-deaths \
           --public
