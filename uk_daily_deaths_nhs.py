@@ -17,6 +17,8 @@
 # # Covid-19 Daily Deaths - UK
 #
 # Via: https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-daily-deaths/
+#
+# At the moment, each time this script runs it downloads all the daily datafiles and builds the db from scratch. We need to optimise things so that only new daily files are parsed and added, incrementally, to the database.
 
 # Daily reports are published as an Excel spreadhseet linked from the following page:
 
@@ -62,6 +64,8 @@ sheets = pd.read_excel(links['COVID 19 daily announced deaths 9 April 2020'],
 # What sheets are available in the spreadsheet
 sheet_names = sheets.keys()
 sheet_names
+
+
 # -
 
 # The spreadsheet contains the following sheets:
@@ -82,17 +86,19 @@ sheet_names
 
 # We don't necessarily know how much metadata there is at the start of the sheet so we need to emply heuristics. If *NHS England Region* is used consistently as a column heading, we can use that as a crib:
 
-rows, cols = np.where(sheets[sheet] == 'NHS England Region')
-rows, cols
+# + tags=["active-ipynb"]
+# rows, cols = np.where(sheets[sheet] == 'NHS England Region')
+# rows, cols
 
-colnames = sheets[sheet].iloc[12]
-sheets[sheet] = sheets[sheet].iloc[15:]
-sheets[sheet].columns = colnames
-sheets[sheet].dropna(axis=1, how='all', inplace=True)
-sheets[sheet].dropna(axis=0, how='all', inplace=True)
-#sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
-sheets[sheet].head()
-
+# + tags=["active-ipynb"]
+# colnames = sheets[sheet].iloc[12]
+# sheets[sheet] = sheets[sheet].iloc[15:]
+# sheets[sheet].columns = colnames
+# sheets[sheet].dropna(axis=1, how='all', inplace=True)
+# sheets[sheet].dropna(axis=0, how='all', inplace=True)
+# #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
+# sheets[sheet].head()
+# -
 
 # The ages data is structured differently, but we can perhaps use *Age Group* as a crib?
 
@@ -189,7 +195,7 @@ def cleaner(sheets):
         sheets[sheet].dropna(axis=1, how='all', inplace=True)
         sheets[sheet].dropna(axis=0, how='all', inplace=True)
         sheets[sheet] = sheets[sheet].loc[:, sheets[sheet].columns.notnull()]
-        display(f'Checking: {sheet}')
+        #display(f'Checking: {sheet}')
         sheets[sheet]['Published'] = published_date
         #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
     return sheets
@@ -250,13 +256,11 @@ def getLinkDate(link):
 
 # Grab the totals:
 
-# + tags=["active-ipynb"]
-# totals_xl = pd.read_excel(totals_link, sheet_name=None)
-# totals_xl.keys()
+totals_xl = pd.read_excel(totals_link, sheet_name=None)
+totals_xl.keys()
 
-# + tags=["active-ipynb"]
-# totals_xl = cleaner(totals_xl)
-# totals_xl.keys()
+totals_xl = cleaner(totals_xl)
+totals_xl.keys()
 
 # + tags=["active-ipynb"]
 # dfs = totals_xl['COVID19 total deaths by trust']
@@ -291,7 +295,8 @@ DB = sqlite_utils.Database("nhs_dailies.db")
 
 # Add the daily data to the db:
 
-df_long.head()
+# + tags=["active-ipynb"]
+# df_long.head()
 
 # +
 idx = {'trust': ['NHS England Region','Code','Name', 'Published'],
@@ -498,7 +503,8 @@ ons_weekly_reg.head()
 ons_weekly_occ = ons_sheets['Covid-19 - Weekly occurrences']
 ons_weekly_occ.head()
 
- def ons_weeklies(ons_weekly, typ):
+
+def ons_weeklies(ons_weekly, typ):
     ons_weekly_long = {}
     rows, cols = np.where(ons_weekly == 'Week ended')
     colnames = ons_weekly.iloc[rows[0]].tolist()
@@ -672,6 +678,10 @@ ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='append')
 #
 # %phe_cases isle of wight
 # -
+
+# ## Run as file
+
+# !python3 uk_daily_deaths_nhs.py
 
 # ## Looking Inside Downloaded Zip Files
 
