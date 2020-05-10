@@ -1,4 +1,5 @@
 requests
+xlrd
 
 numpy
 pandas
@@ -7,6 +8,8 @@ beautifulsoup4
 parse
 dateparser
 sqlite_utils
+
+jupytext
 
 datasette~=0.40
 datasette-render-markdown
