@@ -1,8 +1,19 @@
 {
     "title": "UK Coronavirus Data Supply",
-    "description_html": "An aggregated database of records relating to Covid-19 related deaths in the UK from a variety of sources. Scraped daily.",
+    "description_html": "An aggregated database of records relating to Covid-19 related deaths in the UK from a variety of sources. Scraped daily. <br/><br/> For details about how the data was obtained, see [ouseful-datasupply/uk-coronavirus-deaths](https://github.com/ouseful-datasupply/uk-coronavirus-deaths/)",
     "license": "OGL",
     "license_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
     "source": "Various sources: NHS, Public Health England, ONS",
-    "source_url": "https://github.com/ouseful-datasupply/uk-coronavirus-deaths/blob/master/SOURCES.md"
+    "source_url": "https://github.com/ouseful-datasupply/uk-coronavirus-deaths/blob/master/SOURCES.md",
+    "databases": {
+        "nhs_dailies": {
+            "tables": {
+                "nhs_dailies_age": {
+                    "source": "NHS — Covid-19 Daily Deaths",
+                    "source_url": "https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-daily-deaths/",
+                    "description_html": "Daily deaths by age group (0-19, 20-39, 40-59, 60-79, 80+, TBC)"
+                }
+            }
+        }
+    }
 }
