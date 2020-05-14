@@ -1,0 +1,8 @@
+{
+    "title": "UK Coronavirus Data Supply",
+    "description_html": "An aggregated database of records relating to Covid-19 related deaths in the UK from a variety of sources. Scraped daily.",
+    "license": "OGL",
+    "license_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+    "source": "Various sources: NHS, Public Health England, ONS",
+    "source_url": "https://github.com/ouseful-datasupply/uk-coronavirus-deaths/blob/master/SOURCES.md"
+}
