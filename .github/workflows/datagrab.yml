@@ -49,4 +49,5 @@ jobs:
         datasette publish now nhs_dailies.db \
           --token $NOW_TOKEN \
           --project uk-cv-deaths \
+          --metadata metadata.json \
           --public
