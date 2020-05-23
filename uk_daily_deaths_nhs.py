@@ -68,6 +68,7 @@ soup = BeautifulSoup(page.text)
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup, SoupStrainer
+import numpy as np
 
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
 page = requests.get(base, allow_redirects=True)
