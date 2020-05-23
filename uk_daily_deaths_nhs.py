@@ -26,7 +26,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 import requests
 import pandas as pd
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
-page = requests.get(base)
+page = requests.get(base, allow_redirects=True)
 soup = BeautifulSoup(page.text)
 links = {}
 lahtable_link = ''
@@ -628,7 +628,7 @@ phe_deaths_df.head()
 # ### Weekly deaths, ONS:
 
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
-page = requests.get(base)
+page = requests.get(base, allow_redirects=True)
 soup = BeautifulSoup(page.text)
 links = {}
 lahtable_link = ''
@@ -740,7 +740,7 @@ ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='appen
 # https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
 
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
-page = requests.get(base)
+page = requests.get(base, allow_redirects=True)
 soup = BeautifulSoup(page.text)
 links = {}
 lahtable_link = ''
