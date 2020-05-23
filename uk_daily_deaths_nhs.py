@@ -27,8 +27,8 @@ import requests
 import pandas as pd
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
 page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text)
-print(page.text)
+soup = BeautifulSoup(page.text, 'lxml')
+#print(page.text)
 links = {}
 lahtable_link = ''
 for link in soup.find_all('a'):

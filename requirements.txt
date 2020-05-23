@@ -1,6 +1,8 @@
 requests
 xlrd
 
+lxml
+
 numpy
 pandas
 
