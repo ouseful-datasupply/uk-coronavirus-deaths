@@ -34,6 +34,7 @@ jobs:
         python uk_daily_deaths_nhs.py
     - name: Commit and push
       run: |-
+        test -f nhs_dailies.db || touch nhs_dailies.db
         git config --global user.email "uk-cv-deaths-bot@example.com"
         git config --global user.name "uk-cv-deaths-bot"
         git diff --quiet || (git add nhs_dailies.db && git commit -m "Updated UK CV deaths db")

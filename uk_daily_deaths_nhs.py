@@ -492,7 +492,7 @@ def cleaner(sheets):
         sheets[sheet].reset_index(inplace=True, drop=True)
         
         # Drop lines after Notes
-        rows, cols = np.where(sheets[sheet] == 'Date introduced')
+        rows, cols = np.where(sheets[sheet] == 'Notes:')
         if rows:
             sheets[sheet].drop(sheets[sheet].index[rows[0]:], inplace=True)
          #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
