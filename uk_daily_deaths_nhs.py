@@ -21,42 +21,6 @@
 # At the moment, each time this script runs it downloads all the daily datafiles and builds the db from scratch. We need to optimise things so that only new daily files are parsed and added, incrementally, to the database.
 
 # +
-from bs4 import BeautifulSoup, SoupStrainer
-
-import requests
-import pandas as pd
-base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
-page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text, 'lxml')
-#print(page.text)
-links = {}
-lahtable_link = ''
-for link in soup.find_all('a'):
-    print('>>',link.text)
-    if 'Download Deaths registered weekly' in link.text:
-        lahtable_link = link.get('href')
-        break
-weeklytable_file = lahtable_link#.split('/')[-1]
-weeklytable_file
-ons_weekly_url = f'https://www.ons.gov.uk{weeklytable_file}'
-print(ons_weekly_url)
-r = requests.get(ons_weekly_url, allow_redirects=True)
-
-fn = ons_weekly_url.split('/')[-1]
- 
-with open(fn, 'wb') as f:
-    f.write(r.content)
-
-try:
-    ons_sheets = pd.read_excel(fn, sheet_name=None)
-except:
-    with open(fn) as f:
-        print(f.read())
-# What sheets are available in the spreadsheet
-ons_sheet_names = ons_sheets.keys()
-ons_sheet_names
-
-# +
 import sqlite_utils
 # #!rm nhs_dailies.db
 DB = sqlite_utils.Database("nhs_dailies.db")
@@ -630,7 +594,7 @@ phe_deaths_df.head()
 
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
 page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text)
+soup = BeautifulSoup(page.text, 'lxml')
 links = {}
 lahtable_link = ''
 for link in soup.find_all('a'):
@@ -742,7 +706,7 @@ ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='appen
 
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
 page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text)
+soup = BeautifulSoup(page.text, 'lxml')
 links = {}
 lahtable_link = ''
 for link in soup.find_all('a'):
