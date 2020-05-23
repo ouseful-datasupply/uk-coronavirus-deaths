@@ -20,6 +20,21 @@
 #
 # At the moment, each time this script runs it downloads all the daily datafiles and builds the db from scratch. We need to optimise things so that only new daily files are parsed and added, incrementally, to the database.
 
+# +
+import sqlite_utils
+# #!rm nhs_dailies.db
+DB = sqlite_utils.Database("nhs_dailies.db")
+processed = DB['processed']
+# Start on a mechanism for only downloading things we haven't already grabbed
+# Need a better way to handle query onto table if it doesn't exist yet
+try:
+    already_processed = pd.read_sql("SELECT * FROM processed", DB.conn)['reference'].to_list()
+except:
+    already_processed = []
+    
+already_processed  
+# -
+
 # Daily reports are published as an Excel spreadhseet linked from the following page:
 
 # Reporting page
@@ -48,8 +63,10 @@ for link in soup.find("article", {"class": "rich-text"}).find_all('a'):
     if link.text.startswith('COVID 19 daily announced deaths'):
         if link.text not in links:
             links[link.text] = link.get('href')
+    elif link.text.startswith('COVID 19 total announced deaths') and link.text.endswith('weekly tables'):
+        weekly_totals_link =  link.get('href')
     elif link.text.startswith('COVID 19 total announced deaths'):
-            totals_link =  link.get('href')
+        totals_link =  link.get('href')
 links
 
 import numpy as np
@@ -57,15 +74,13 @@ import pandas as pd
 
 # Start to sketch out how we can parse the data out of one of the spreadsheets. The following has been arrivied though a little bit of iteration an previewing of the data:
 
-# +
-sheets = pd.read_excel(links['COVID 19 daily announced deaths 9 April 2020'],
-                           sheet_name=None)
-
-# What sheets are available in the spreadsheet
-sheet_names = sheets.keys()
-sheet_names
-
-
+# + tags=["active-ipynb"]
+# sheets = pd.read_excel(links['COVID 19 daily announced deaths 9 April 2020'],
+#                            sheet_name=None)
+#
+# # What sheets are available in the spreadsheet
+# sheet_names = sheets.keys()
+# sheet_names
 # -
 
 # The spreadsheet contains the following sheets:
@@ -153,6 +168,39 @@ sheet_names
 # sheets[sheet].head()
 # -
 
+# Sheet names keep changing, so create a lookup of aliases that we can normalise into.
+#
+# Some of the `ignore` sheets should be treated as "ignore for now" - there is data we can scrape but it may not be in a form currently handled.
+
+sheet_aliases = {
+    'COVID19 daily deaths by age': 'deaths by age',
+    'COVID19 daily deaths by region': 'deaths by region',
+    'COVID19 daily deaths by trust': 'deaths by trust',
+    # TO DO - could the totals as well as daily sheet move to this convention?
+    'Tab1 Deaths by region': 'deaths by region', 
+    'Tab2 Deaths - no pos test': 'ignore', 
+    'Tab3 Deaths by age': 'deaths by age',
+    'Tab4 Deaths by trust': 'deaths by trust',
+    'Contents': 'ignore',
+    'Fig1 Daily deaths': 'ignore',
+    'COVID19 daily deaths chart': 'ignore',
+    'Deaths by region- no pos test ':  'ignore',
+    'Deaths by region-negative test ': 'ignore',
+    'Deaths by region - no pos test ':  'ignore',
+    'COVID19 total deaths chart': 'ignore',
+    'COVID19 total deaths by trust': 'deaths by trust',
+    'COVID19 total deaths by region': 'deaths by region',
+    'COVID19 total deaths by age': 'deaths by age',
+    'COVID19 all deaths by ethnicity': 'deaths by ethnicity',
+    'COVID19 all deaths by gender': 'deaths by gender',
+    'COVID19 all deaths by condition': 'ignore',
+    'Tab1 Deaths by ethnicity': 'deaths by ethnicity',
+    'Tab2 Deaths by gender': 'deaths by gender', 
+    'Tab3 Deaths by condition': 'ignore',
+    'Tab4 Deaths by cond (detail)': 'deaths by condition'
+}
+
+
 # The following tries to clean things automatically - we drop the national aggregate values:
 
 # +
@@ -170,19 +218,23 @@ sheet_names
 
 def cleaner(sheets):
     for sheet in sheets:
-        print(sheet)
-        if 'chart' in sheet or 'no pos' in sheet or 'condition' in sheet:
+        #if 'chart' in sheet or 'no pos' in sheet or 'condition' in sheet:
+        #    continue
+        if sheet not in sheet_aliases or sheet_aliases[sheet]=='ignore':
             continue
         rows, cols = np.where(sheets[sheet] == 'Published:')
         published_date = sheets[sheet].iat[rows[0], cols[0]+1]
-
-        if 'age' in sheet or 'gender' in sheet:
+        print('1',sheet_aliases[sheet])
+        if 'age' in sheet or 'gender' in sheet_aliases[sheet]:
             rows, cols = np.where(sheets[sheet] == 'Age group')
             #print((rows, cols))
             _ix= rows[0]
-        elif 'ethnicity' in sheet:
+        elif 'ethnicity' in sheet_aliases[sheet]:
             rows, cols = np.where(sheets[sheet] == 'Ethnic group')
             #print((rows, cols))
+            _ix= rows[0]
+        elif 'condition' in sheet_aliases[sheet]:
+            rows, cols = np.where(sheets[sheet] == 'Date introduced')
             _ix= rows[0]
         else:
             rows, cols = np.where(sheets[sheet] == 'NHS England Region')
@@ -197,7 +249,13 @@ def cleaner(sheets):
         sheets[sheet] = sheets[sheet].loc[:, sheets[sheet].columns.notnull()]
         #display(f'Checking: {sheet}')
         sheets[sheet]['Published'] = published_date
-        #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
+        sheets[sheet].reset_index(inplace=True, drop=True)
+        
+        # Drop lines after Notes
+        rows, cols = np.where(sheets[sheet] == 'Date introduced')
+        if rows:
+            sheets[sheet].drop(sheets[sheet].index[rows[0]:], inplace=True)
+         #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
     return sheets
 
 
@@ -208,13 +266,26 @@ def cleaner(sheets):
 # +
 data = {}
 
+tabs = []
 for link in links:
-    print(link)
-    sheets = pd.read_excel(links[link], sheet_name=None)
-    sheets = cleaner(sheets)
-    data[link] = sheets
+    if link in already_processed:
+        continue
+    try:
+        print(link)
+        sheets = pd.read_excel(links[link], sheet_name=None)
+        for k in sheets.keys():
+            if k not in tabs:
+                tabs.append(k)
+        sheets = cleaner(sheets)
+        data[link] = sheets
+        processed.insert({"reference": link})
+    except:
+        print("Broke with sheets:", sheets.keys())
+        exit(-1)
 
 
+# + tags=["active-ipynb"]
+# tabs
 
 # + tags=["active-ipynb"]
 # data.keys()
@@ -259,12 +330,24 @@ def getLinkDate(link):
 totals_xl = pd.read_excel(totals_link, sheet_name=None)
 totals_xl.keys()
 
+weekly_totals_xl =  pd.read_excel(weekly_totals_link, sheet_name=None)
+weekly_totals_xl.keys()
+
+# +
+#totals_xl['Tab4 Deaths by cond (detail)']
+# -
+
 totals_xl = cleaner(totals_xl)
 totals_xl.keys()
 
+weekly_totals_xl = cleaner(weekly_totals_xl)
+weekly_totals_xl.keys()
+
+totals_xl
+
 # + tags=["active-ipynb"]
-# dfs = totals_xl['COVID19 total deaths by trust']
-# dfs[dfs['Name'].str.contains('WIGHT')]
+# #dfs = totals_xl['COVID19 total deaths by trust']
+# #dfs[dfs['Name'].str.contains('WIGHT')]
 # -
 
 # ## Adding NHS Daily Data to a Database
@@ -289,30 +372,28 @@ totals_xl.keys()
 
 # Create a simple SQLite database:
 
-import sqlite_utils
-# !rm nhs_dailies.db
-DB = sqlite_utils.Database("nhs_dailies.db")
-
 # Add the daily data to the db:
 
 # + tags=["active-ipynb"]
-# df_long.head()
+# #df_long.head()
 
 # +
 idx = {'trust': ['NHS England Region','Code','Name', 'Published'],
        'age': ['Age group', 'Published'],
        'region': ['NHS England Region', 'Published'] }
 
-# TO DO  - ethnicity
 for daily in data.keys():
     #print(daily)
     #linkDate = getLinkDate(daily)
     # TO DO - get data from excluded sheets
+    if daily in already_processed:
+        continue
     for sheet in data[daily].keys():
-        if 'chart' in sheet or 'condition' in sheet or 'test' in sheet:
+        if sheet not in sheet_aliases or sheet_aliases[sheet]=='ignore':
             continue
         #print(sheet)
-        table = parse('COVID19 daily deaths by {table}', sheet)['table']
+        table = parse('deaths by {table}', sheet_aliases[sheet])['table']
+        #print(f'Using table {table}')
         df_dailies = data[daily][sheet].drop(columns=['Awaiting verification', 'Total'])
         #df_dailies['Link_date'] = linkDate
         idx_cols = idx[table]#+['Link_date']
@@ -330,6 +411,8 @@ for daily in data.keys():
         cols = idx[table] + ['Awaiting verification', 'Total']
         data[daily][sheet][cols].to_sql(f'{_table}_summary',
                                         DB.conn, index=False, if_exists='append')
+        
+    processed.insert({"reference": daily})
 # -
 
 # Dummy query on `age` sheet:
@@ -375,28 +458,58 @@ for daily in data.keys():
 # -
 
 for sheet in totals_xl.keys():
-    if 'chart' in sheet or 'condition' in sheet or 'ethnicity' in sheet or 'gender' in sheet or 'test' in sheet:
+    if sheet not in sheet_aliases or sheet_aliases[sheet]=='ignore':
             continue
-    table = parse('COVID19 total deaths by {table}', sheet)['table']
-    df_totals = totals_xl[sheet].drop(columns=['Awaiting verification', 'Total', 'Up to 01-Mar-20'])
-    idx_cols = idx[table]
-    df_long = df_totals.melt(id_vars=idx_cols,
-                              var_name='Date',
-                              value_name='value')
-    df_long['Date'] = pd.to_datetime(df_long['Date'])
-    if df_long['Published'].dtype == 'O':
-        df_long['Published'] = df_long['Published'].apply(dateparser.parse)
-    df_long['lag'] = (df_long['Published'] - df_long['Date']).dt.days
-
+    table = parse('deaths by {table}', sheet_aliases[sheet])['table']
     _table = f'nhs_totals_{table}'
-    df_long.to_sql(_table, DB.conn, index=False, if_exists='append')
-    
-    cols = idx_cols + ['Up to 01-Mar-20', 'Awaiting verification', 'Total']
-    totals_xl[sheet][cols].to_sql(f'{_table}_summary',
-                                    DB.conn, index=False, if_exists='append')
+    if 'ethnicity' not in table and 'gender' not in table and 'condition' not in table:
+        df_totals = totals_xl[sheet].drop(columns=['Awaiting verification', 'Total', 'Up to 01-Mar-20'])
+        idx_cols = idx[table]
+        df_long = df_totals.melt(id_vars=idx_cols,
+                                  var_name='Date',
+                                  value_name='value')
+        df_long['Date'] = pd.to_datetime(df_long['Date'])
+        if df_long['Published'].dtype == 'O':
+            df_long['Published'] = df_long['Published'].apply(dateparser.parse)
+        df_long['lag'] = (df_long['Published'] - df_long['Date']).dt.days
+
+        df_long.to_sql(_table, DB.conn, index=False, if_exists='append')
+
+        cols = idx_cols + ['Up to 01-Mar-20', 'Awaiting verification', 'Total']
+        totals_xl[sheet][cols].to_sql(f'{_table}_summary',
+                                        DB.conn, index=False, if_exists='append')
+    else:
+        totals_xl[sheet].to_sql(f'{_table}', DB.conn, index=False, if_exists='append')
+
+for sheet in weekly_totals_xl.keys():
+    if sheet not in sheet_aliases or sheet_aliases[sheet]=='ignore':
+            continue
+    table = parse('deaths by {table}', sheet_aliases[sheet])['table']
+    _table = f'nhs_weekly_totals_{table}'
+    if 'ethnicity' not in table and 'gender' not in table and 'condition' not in table:
+        df_totals = weekly_totals_xl[sheet].drop(columns=['Awaiting verification', 'Total', 'Up to 01-Mar-20'])
+        idx_cols = idx[table]
+        df_long = df_totals.melt(id_vars=idx_cols,
+                                  var_name='Date',
+                                  value_name='value')
+        df_long['Date'] = pd.to_datetime(df_long['Date'])
+        if df_long['Published'].dtype == 'O':
+            df_long['Published'] = df_long['Published'].apply(dateparser.parse)
+        df_long['lag'] = (df_long['Published'] - df_long['Date']).dt.days
+
+        df_long.to_sql(_table, DB.conn, index=False, if_exists='append')
+
+        cols = idx_cols + ['Up to 01-Mar-20', 'Awaiting verification', 'Total']
+        weekly_totals_xl[sheet][cols].to_sql(f'{_table}_summary',
+                                        DB.conn, index=False, if_exists='append')
+    else:
+        weekly_totals_xl[sheet].to_sql(f'{_table}', DB.conn, index=False, if_exists='append')
 
 # + tags=["active-ipynb"]
-# pd.read_sql("SELECT * FROM nhs_totals_region_summary LIMIT 25", DB.conn)
+# DB.table_names()
+
+# + tags=["active-ipynb"]
+# #pd.read_sql("SELECT * FROM nhs_totals_region_summary LIMIT 25", DB.conn)
 # -
 
 # ## Basic Charts
@@ -441,7 +554,7 @@ phe_cases_url = 'https://coronavirus.data.gov.uk/downloads/csv/coronavirus-cases
 phe_cases_df = get_308_csv(phe_cases_url)
 
 _table = f'phe_cases'
-phe_cases_df.to_sql(_table, DB.conn, index=False, if_exists='append')
+phe_cases_df.to_sql(_table, DB.conn, index=False, if_exists='replace')
     
 phe_cases_df.head()
 
@@ -453,7 +566,7 @@ phe_deaths_url = 'https://coronavirus.data.gov.uk/downloads/csv/coronavirus-deat
 phe_deaths_df = get_308_csv(phe_cases_url)
 
 _table = f'phe_deaths'
-phe_cases_df.to_sql(_table, DB.conn, index=False, if_exists='append')
+phe_cases_df.to_sql(_table, DB.conn, index=False, if_exists='replace')
 
 phe_deaths_df.head()
 
@@ -479,7 +592,20 @@ phe_deaths_df.head()
 
 # ### Weekly deaths, ONS:
 
-ons_weekly_url = 'https://www.ons.gov.uk/file?uri=%2fpeoplepopulationandcommunity%2fbirthsdeathsandmarriages%2fdeaths%2fdatasets%2fweeklyprovisionalfiguresondeathsregisteredinenglandandwales%2f2020/publishedweek1620201.xlsx'
+base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
+page = requests.get(base)
+soup = BeautifulSoup(page.text)
+links = {}
+lahtable_link = ''
+for link in soup.find_all('a'):
+    if 'Download Deaths registered weekly' in link.text and '2020' in link.text:
+        lahtable_link = link.get('href')
+        break
+weeklytable_file = lahtable_link#.split('/')[-1]
+weeklytable_file
+
+ons_weekly_url = f'https://www.ons.gov.uk/{weeklytable_file}'
+ons_weekly_url
 
 
 # +
@@ -525,10 +651,13 @@ def ons_weeklies(ons_weekly, typ):
         ons_weekly_long[t] = ons_weekly.iloc[r+1: _r+1]
         ons_weekly_long[t].columns = colnames
         ons_weekly_long[t].dropna(axis=1, how='all', inplace=True)
-        if 'Year to date' in ons_weekly_long[t].columns:
-            ons_weekly_long[t].drop(columns=['Year to date'], inplace=True)
+        dropper = [c for c in ons_weekly_long[t].columns if 'to date' in str(c)]
+        dropper = dropper + [c for c in ons_weekly_long[t].columns if '1 to' in str(c)]
+        if dropper:
+            ons_weekly_long[t].drop(columns=dropper, inplace=True)
         ons_weekly_long[t] = ons_weekly_long[t].melt(id_vars=['Age'], var_name='Date', value_name='value')
         ons_weekly_long[t]['measure'] = typ
+        display(ons_weekly_long[t])
         ons_weekly_long[t]['Date'] = pd.to_datetime(ons_weekly_long[t]['Date'])
 
     ons_weekly_long['Any'] = pd.DataFrame()
@@ -546,6 +675,8 @@ ons_weekly_reg_long['Females']
 # + tags=["active-ipynb"]
 # ons_weekly_reg_long['Any']
 # -
+
+ons_weekly_occ
 
 ons_weekly_occ_long = ons_weeklies(ons_weekly_occ, 'Weekly occurrences')
 ons_weekly_occ_long['Males']
@@ -570,7 +701,20 @@ ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='appen
 #
 # https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
 
-ons_death_reg_url = 'https://www.ons.gov.uk/file?uri=%2fpeoplepopulationandcommunity%2fhealthandsocialcare%2fcausesofdeath%2fdatasets%2fdeathregistrationsandoccurrencesbylocalauthorityandhealthboard%2f2020/lahbtablesweek16.xlsx'
+base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
+page = requests.get(base)
+soup = BeautifulSoup(page.text)
+links = {}
+lahtable_link = ''
+for link in soup.find_all('a'):
+    if 'Download Death registrations and occurrences' in link.text:
+        lahtable_link = link.get('href')
+        break
+lahtable_file = lahtable_link#.split('/')[-1]
+lahtable_file
+
+ons_death_reg_url = f'https://www.ons.gov.uk{lahtable_file}'
+ons_death_reg_url
 
 # +
 r = requests.get(ons_death_reg_url)
@@ -608,13 +752,16 @@ ons_death_reg.columns = colnames
 
 ons_death_reg['Registered up to'] = upto
 ons_death_reg
+# -
+
+ons_death_occ_metadata
 
 # +
 ons_death_occ = ons_reg_sheets['Occurrences - All data']
 ons_death_occ_metadata = ons_death_occ.iloc[0, 0]
 ons_death_occ_metadata
 
-uptos = parse('Deaths (numbers) by local authority and cause of death, for deaths that occurred up to {date_occ} but were registered up to the {date_reg}, England and Wales',
+uptos = parse('Deaths (numbers) by local authority and cause of death, for deaths that occurred up to {date_occ} but were registered up to {date_reg}, England and Wales',
              ons_death_occ_metadata)
 
 upto_occ = uptos['date_occ']
@@ -639,10 +786,10 @@ ons_death_occ
 
 # +
 _table = 'ons_deaths_reg'
-ons_death_reg.to_sql(_table, DB.conn, index=False, if_exists='append')
+ons_death_reg.to_sql(_table, DB.conn, index=False, if_exists='replace')
 
 _table = 'ons_deaths_reg_occ'
-ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='append')
+ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
 # -
 
 # ## Deployment via datasette
