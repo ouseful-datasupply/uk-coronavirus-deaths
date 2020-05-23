@@ -24,12 +24,14 @@
 from bs4 import BeautifulSoup, SoupStrainer
 
 import requests
+import pandas as pd
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
 page = requests.get(base)
 soup = BeautifulSoup(page.text)
 links = {}
 lahtable_link = ''
 for link in soup.find_all('a'):
+    print(link.text))
     if 'Download Deaths registered weekly' in link.text:
         lahtable_link = link.get('href')
         break
