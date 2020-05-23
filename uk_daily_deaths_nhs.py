@@ -31,7 +31,7 @@ soup = BeautifulSoup(page.text)
 links = {}
 lahtable_link = ''
 for link in soup.find_all('a'):
-    print(link.text))
+    print(link.text)
     if 'Download Deaths registered weekly' in link.text:
         lahtable_link = link.get('href')
         break
