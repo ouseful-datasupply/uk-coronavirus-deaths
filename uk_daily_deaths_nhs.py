@@ -46,15 +46,248 @@ url = 'https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-dai
 import requests
 
 page = requests.get(url)
-# -
-
-# Get the HTML page data into a form we can scrape it:
 
 # +
 from bs4 import BeautifulSoup, SoupStrainer
 
 soup = BeautifulSoup(page.text)
 # -
+
+# Get the HTML page data into a form we can scrape it:
+
+# ## ONS
+#
+# Death registrations, 2020: https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
+#
+# Weekly Death registrations (provisional):
+# https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales
+#
+
+# ### Weekly deaths, ONS:
+
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup, SoupStrainer
+
+base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
+page = requests.get(base, allow_redirects=True)
+soup = BeautifulSoup(page.text, 'lxml')
+links = {}
+lahtable_link = ''
+for link in soup.find_all('a'):
+    if 'Download Deaths registered weekly' in link.text:
+        lahtable_link = link.get('href')
+        break
+weeklytable_file = lahtable_link#.split('/')[-1]
+weeklytable_file
+
+ons_weekly_url = f'https://www.ons.gov.uk{weeklytable_file}'
+print(ons_weekly_url)
+
+
+# +
+r = requests.get(ons_weekly_url)
+
+fn = ons_weekly_url.split('/')[-1]
+
+print('Writing file...')
+with open(fn, 'wb') as f:
+    f.write(r.content)
+print('File written...')
+try:
+    ons_sheets = pd.read_excel(fn, sheet_name=None)
+except:
+    with open(fn) as f:
+        print(f.read())
+# What sheets are available in the spreadsheet
+ons_sheet_names = ons_sheets.keys()
+ons_sheet_names
+# -
+
+print('To here 1..')
+ons_weekly_reg = ons_sheets['Covid-19 - Weekly registrations']
+ons_weekly_reg.head()
+
+print('To here 2..')
+ons_weekly_occ = ons_sheets['Covid-19 - Weekly occurrences']
+print(ons_weekly_occ.head())
+
+print('To here 3..')
+def ons_weeklies(ons_weekly, typ):
+    ons_weekly_long = {}
+    rows, cols = np.where(ons_weekly == 'Week ended')
+    colnames = ons_weekly.iloc[rows[0]].tolist()
+    colnames[1] = 'Age'
+    print('to A')
+    rows, cols = np.where(ons_weekly == 'Deaths by age group')
+    print('to B', row, cols)
+    _rows, _ = np.where(ons_weekly == '90+')
+    _ix = rows[0]
+    print('to C', _rows)
+    tables = []
+
+
+    #Get the first three tables - for Persons, Males and Females
+    for r, c in zip(rows, cols):
+        tables.append(ons_weekly.iloc[r-1, c].split()[0])
+    print('to D')
+    for r, _r, t in zip(rows, _rows, tables):
+        ons_weekly_long[t] = ons_weekly.iloc[r+1: _r+1]
+        ons_weekly_long[t].columns = colnames
+        ons_weekly_long[t].dropna(axis=1, how='all', inplace=True)
+        dropper = [c for c in ons_weekly_long[t].columns if 'to date' in str(c)]
+        dropper = dropper + [c for c in ons_weekly_long[t].columns if '1 to' in str(c)]
+        if dropper:
+            ons_weekly_long[t].drop(columns=dropper, inplace=True)
+        ons_weekly_long[t] = ons_weekly_long[t].melt(id_vars=['Age'], var_name='Date', value_name='value')
+        ons_weekly_long[t]['measure'] = typ
+        display(ons_weekly_long[t])
+        ons_weekly_long[t]['Date'] = pd.to_datetime(ons_weekly_long[t]['Date'])
+
+    ons_weekly_long['Any'] = pd.DataFrame()
+    for t in tables:
+        ons_weekly_long[t]['Group'] = t
+        ons_weekly_long['Any'] = pd.concat([ons_weekly_long['Any'], ons_weekly_long[t]])
+    
+    ons_weekly_long['Any'].reset_index(inplace=True, drop=True)
+    
+    return ons_weekly_long
+
+print('To here 4..')
+ons_weekly_reg_long = ons_weeklies(ons_weekly_reg, 'Weekly registrations')
+ons_weekly_reg_long['Females']
+
+# + tags=["active-ipynb"]
+# ons_weekly_reg_long['Any']
+
+# + tags=["active-ipynb"]
+# ons_weekly_occ
+# -
+
+print('To here 5..')
+ons_weekly_occ_long = ons_weeklies(ons_weekly_occ, 'Weekly occurrences')
+ons_weekly_occ_long['Males']
+
+print('To here 6..')
+ons_weekly_all = ons_sheets['Weekly figures 2020']
+ons_weekly_all.head()
+
+print('To here 7..')
+ons_weekly_all_long = ons_weeklies(ons_weekly_all, 'Weekly all mortality')
+ons_weekly_all_long['Males']
+
+# Add to database...
+
+# +
+print('To here 8..')
+_table = 'ons_deaths'
+
+ons_weekly_occ_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 9..')
+ons_weekly_reg_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 10..')
+ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 11..')
+# -
+
+# ### ONS Death Registrations, 2020
+#
+# https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
+
+print('To here 12..')
+base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
+page = requests.get(base, allow_redirects=True)
+soup = BeautifulSoup(page.text, 'lxml')
+links = {}
+lahtable_link = ''
+for link in soup.find_all('a'):
+    if 'Download Death registrations and occurrences' in link.text:
+        lahtable_link = link.get('href')
+        break
+lahtable_file = lahtable_link#.split('/')[-1]
+lahtable_file
+
+print('To here 13..')
+ons_death_reg_url = f'https://www.ons.gov.uk{lahtable_file}'
+ons_death_reg_url
+
+# +
+print('To here 14..')
+r = requests.get(ons_death_reg_url, allow_redirects=True)
+
+fn = ons_death_reg_url.split('/')[-1]
+ 
+with open(fn, 'wb') as f:
+    f.write(r.content)
+
+ons_reg_sheets = pd.read_excel(fn, sheet_name=None)
+
+# What sheets are available in the spreadsheet
+ons_reg_sheet_names = ons_reg_sheets.keys()
+ons_reg_sheet_names
+# -
+
+print('To here 15..')
+ons_death_reg = ons_reg_sheets['Registrations - All data']
+ons_death_reg_metadata = ons_death_reg.iloc[0, 0]
+ons_death_reg_metadata
+
+# +
+print('To here 16..')
+from parse import parse
+import dateparser
+
+upto = parse('Deaths (numbers) by local authority and cause of death, registered up to the {date}, England and Wales',
+             ons_death_reg_metadata)['date']
+upto = dateparser.parse(upto)
+
+rows, cols = np.where(ons_death_reg == 'Area code')
+colnames = ons_death_reg.iloc[rows[0]].tolist()
+    
+ons_death_reg = ons_death_reg.iloc[rows[0]+1:].reset_index(drop=True)
+ons_death_reg.columns = colnames
+
+
+ons_death_reg['Registered up to'] = upto
+ons_death_reg
+
+# +
+print('To here 17..')
+ons_death_occ = ons_reg_sheets['Occurrences - All data']
+ons_death_occ_metadata = ons_death_occ.iloc[0, 0]
+ons_death_occ_metadata
+
+uptos = parse('Deaths (numbers) by local authority and cause of death, for deaths that occurred up to {date_occ} but were registered up to {date_reg}, England and Wales',
+             ons_death_occ_metadata)
+
+upto_occ = uptos['date_occ']
+if '2020' not in upto_occ: upto_occ = f'{upto_occ} 2020'
+    
+upto_reg = uptos['date_reg']
+if '2020' not in upto_occ: upto_occ = f'{upto_reg} 2020'
+
+upto_occ = dateparser.parse(upto_occ)
+upto_reg = dateparser.parse(upto_reg)
+
+rows, cols = np.where(ons_death_occ == 'Area code')
+colnames = ons_death_occ.iloc[rows[0]].tolist()
+    
+ons_death_occ = ons_death_occ.iloc[rows[0]+1:].reset_index(drop=True)
+ons_death_occ.columns = colnames
+
+
+ons_death_occ['Occurred up to'] = upto_occ
+ons_death_occ['Registered up to'] = upto_reg
+ons_death_occ
+# -
+
+print('To here 18..')
+_table = 'ons_deaths_reg'
+ons_death_reg.to_sql(_table, DB.conn, index=False, if_exists='replace')
+print('To here 19..')
+_table = 'ons_deaths_reg_occ'
+ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
+print('To here 20..')
 
 # Get the relevant links to the daily spreadseets:
 
@@ -581,235 +814,6 @@ phe_deaths_df.head()
 #
 # Hospital Episode Statistics:
 # https://digital.nhs.uk/data-and-information/publications/statistical/hospital-episode-statistics-for-admitted-patient-care-outpatient-and-accident-and-emergency-data
-
-# ## ONS
-#
-# Death registrations, 2020: https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
-#
-# Weekly Death registrations (provisional):
-# https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales
-#
-
-# ### Weekly deaths, ONS:
-
-base='https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/weeklyprovisionalfiguresondeathsregisteredinenglandandwales'
-page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text, 'lxml')
-links = {}
-lahtable_link = ''
-for link in soup.find_all('a'):
-    if 'Download Deaths registered weekly' in link.text:
-        lahtable_link = link.get('href')
-        break
-weeklytable_file = lahtable_link#.split('/')[-1]
-weeklytable_file
-
-ons_weekly_url = f'https://www.ons.gov.uk{weeklytable_file}'
-print(ons_weekly_url)
-
-
-# +
-r = requests.get(ons_weekly_url)
-
-fn = ons_weekly_url.split('/')[-1]
-
-print('Writing file...')
-with open(fn, 'wb') as f:
-    f.write(r.content)
-print('File written...')
-try:
-    ons_sheets = pd.read_excel(fn, sheet_name=None)
-except:
-    with open(fn) as f:
-        print(f.read())
-# What sheets are available in the spreadsheet
-ons_sheet_names = ons_sheets.keys()
-ons_sheet_names
-# -
-
-print('To here 1..')
-ons_weekly_reg = ons_sheets['Covid-19 - Weekly registrations']
-ons_weekly_reg.head()
-
-print('To here 2..')
-ons_weekly_occ = ons_sheets['Covid-19 - Weekly occurrences']
-ons_weekly_occ.head()
-
-print('To here 3..')
-def ons_weeklies(ons_weekly, typ):
-    ons_weekly_long = {}
-    rows, cols = np.where(ons_weekly == 'Week ended')
-    colnames = ons_weekly.iloc[rows[0]].tolist()
-    colnames[1] = 'Age'
-
-    rows, cols = np.where(ons_weekly == 'Deaths by age group')
-    _rows, _ = np.where(ons_weekly == '90+')
-    _ix = rows[0]
-
-    tables = []
-
-
-    #Get the first three tables - for Persons, Males and Females
-    for r, c in zip(rows, cols):
-        tables.append(ons_weekly.iloc[r-1, c].split()[0])
-
-    for r, _r, t in zip(rows, _rows, tables):
-        ons_weekly_long[t] = ons_weekly.iloc[r+1: _r+1]
-        ons_weekly_long[t].columns = colnames
-        ons_weekly_long[t].dropna(axis=1, how='all', inplace=True)
-        dropper = [c for c in ons_weekly_long[t].columns if 'to date' in str(c)]
-        dropper = dropper + [c for c in ons_weekly_long[t].columns if '1 to' in str(c)]
-        if dropper:
-            ons_weekly_long[t].drop(columns=dropper, inplace=True)
-        ons_weekly_long[t] = ons_weekly_long[t].melt(id_vars=['Age'], var_name='Date', value_name='value')
-        ons_weekly_long[t]['measure'] = typ
-        display(ons_weekly_long[t])
-        ons_weekly_long[t]['Date'] = pd.to_datetime(ons_weekly_long[t]['Date'])
-
-    ons_weekly_long['Any'] = pd.DataFrame()
-    for t in tables:
-        ons_weekly_long[t]['Group'] = t
-        ons_weekly_long['Any'] = pd.concat([ons_weekly_long['Any'], ons_weekly_long[t]])
-    
-    ons_weekly_long['Any'].reset_index(inplace=True, drop=True)
-    
-    return ons_weekly_long
-
-print('To here 4..')
-ons_weekly_reg_long = ons_weeklies(ons_weekly_reg, 'Weekly registrations')
-ons_weekly_reg_long['Females']
-
-# + tags=["active-ipynb"]
-# ons_weekly_reg_long['Any']
-
-# + tags=["active-ipynb"]
-# ons_weekly_occ
-# -
-
-print('To here 5..')
-ons_weekly_occ_long = ons_weeklies(ons_weekly_occ, 'Weekly occurrences')
-ons_weekly_occ_long['Males']
-
-print('To here 6..')
-ons_weekly_all = ons_sheets['Weekly figures 2020']
-ons_weekly_all.head()
-
-print('To here 7..')
-ons_weekly_all_long = ons_weeklies(ons_weekly_all, 'Weekly all mortality')
-ons_weekly_all_long['Males']
-
-# Add to database...
-
-# +
-print('To here 8..')
-_table = 'ons_deaths'
-
-ons_weekly_occ_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
-print('To here 9..')
-ons_weekly_reg_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
-print('To here 10..')
-ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
-print('To here 11..')
-# -
-
-# ### ONS Death Registrations, 2020
-#
-# https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
-
-print('To here 12..')
-base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
-page = requests.get(base, allow_redirects=True)
-soup = BeautifulSoup(page.text, 'lxml')
-links = {}
-lahtable_link = ''
-for link in soup.find_all('a'):
-    if 'Download Death registrations and occurrences' in link.text:
-        lahtable_link = link.get('href')
-        break
-lahtable_file = lahtable_link#.split('/')[-1]
-lahtable_file
-
-print('To here 13..')
-ons_death_reg_url = f'https://www.ons.gov.uk{lahtable_file}'
-ons_death_reg_url
-
-# +
-print('To here 14..')
-r = requests.get(ons_death_reg_url, allow_redirects=True)
-
-fn = ons_death_reg_url.split('/')[-1]
- 
-with open(fn, 'wb') as f:
-    f.write(r.content)
-
-ons_reg_sheets = pd.read_excel(fn, sheet_name=None)
-
-# What sheets are available in the spreadsheet
-ons_reg_sheet_names = ons_reg_sheets.keys()
-ons_reg_sheet_names
-# -
-
-print('To here 15..')
-ons_death_reg = ons_reg_sheets['Registrations - All data']
-ons_death_reg_metadata = ons_death_reg.iloc[0, 0]
-ons_death_reg_metadata
-
-# +
-print('To here 16..')
-from parse import parse
-import dateparser
-
-upto = parse('Deaths (numbers) by local authority and cause of death, registered up to the {date}, England and Wales',
-             ons_death_reg_metadata)['date']
-upto = dateparser.parse(upto)
-
-rows, cols = np.where(ons_death_reg == 'Area code')
-colnames = ons_death_reg.iloc[rows[0]].tolist()
-    
-ons_death_reg = ons_death_reg.iloc[rows[0]+1:].reset_index(drop=True)
-ons_death_reg.columns = colnames
-
-
-ons_death_reg['Registered up to'] = upto
-ons_death_reg
-
-# +
-print('To here 17..')
-ons_death_occ = ons_reg_sheets['Occurrences - All data']
-ons_death_occ_metadata = ons_death_occ.iloc[0, 0]
-ons_death_occ_metadata
-
-uptos = parse('Deaths (numbers) by local authority and cause of death, for deaths that occurred up to {date_occ} but were registered up to {date_reg}, England and Wales',
-             ons_death_occ_metadata)
-
-upto_occ = uptos['date_occ']
-if '2020' not in upto_occ: upto_occ = f'{upto_occ} 2020'
-    
-upto_reg = uptos['date_reg']
-if '2020' not in upto_occ: upto_occ = f'{upto_reg} 2020'
-
-upto_occ = dateparser.parse(upto_occ)
-upto_reg = dateparser.parse(upto_reg)
-
-rows, cols = np.where(ons_death_occ == 'Area code')
-colnames = ons_death_occ.iloc[rows[0]].tolist()
-    
-ons_death_occ = ons_death_occ.iloc[rows[0]+1:].reset_index(drop=True)
-ons_death_occ.columns = colnames
-
-
-ons_death_occ['Occurred up to'] = upto_occ
-ons_death_occ['Registered up to'] = upto_reg
-ons_death_occ
-# -
-
-print('To here 18..')
-_table = 'ons_deaths_reg'
-ons_death_reg.to_sql(_table, DB.conn, index=False, if_exists='replace')
-print('To here 19..')
-_table = 'ons_deaths_reg_occ'
-ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
-print('To here 20..')
 
 # ## Deployment via datasette
 #
