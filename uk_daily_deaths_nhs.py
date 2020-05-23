@@ -138,18 +138,19 @@ def ons_weeklies(ons_weekly, typ):
         ons_weekly_long[t].dropna(axis=1, how='all', inplace=True)
         dropper = [c for c in ons_weekly_long[t].columns if 'to date' in str(c)]
         dropper = dropper + [c for c in ons_weekly_long[t].columns if '1 to' in str(c)]
+        print('to E', r, _r, t, dropper)
         if dropper:
             ons_weekly_long[t].drop(columns=dropper, inplace=True)
         ons_weekly_long[t] = ons_weekly_long[t].melt(id_vars=['Age'], var_name='Date', value_name='value')
         ons_weekly_long[t]['measure'] = typ
         display(ons_weekly_long[t])
         ons_weekly_long[t]['Date'] = pd.to_datetime(ons_weekly_long[t]['Date'])
-
+    print('to F', tables)
     ons_weekly_long['Any'] = pd.DataFrame()
     for t in tables:
         ons_weekly_long[t]['Group'] = t
         ons_weekly_long['Any'] = pd.concat([ons_weekly_long['Any'], ons_weekly_long[t]])
-    
+    print('to F')
     ons_weekly_long['Any'].reset_index(inplace=True, drop=True)
     
     return ons_weekly_long
