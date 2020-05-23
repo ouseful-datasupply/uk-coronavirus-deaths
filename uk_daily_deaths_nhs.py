@@ -45,13 +45,11 @@ url = 'https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-dai
 # +
 import requests
 
-page = requests.get(url)
 
-# +
+# -
+
 from bs4 import BeautifulSoup, SoupStrainer
 
-soup = BeautifulSoup(page.text)
-# -
 
 # Get the HTML page data into a form we can scrape it:
 
@@ -290,6 +288,13 @@ print('To here 19..')
 _table = 'ons_deaths_reg_occ'
 ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
 print('To here 20..')
+
+# ## NHS stuff
+#
+# Get the links...
+
+page = requests.get(url)
+soup = BeautifulSoup(page.text)
 
 # Get the relevant links to the daily spreadseets:
 
