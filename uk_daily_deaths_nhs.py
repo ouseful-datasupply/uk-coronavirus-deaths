@@ -829,7 +829,9 @@ ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
 
 # ## Run as file
 
+# + tags=["active-ipynb"]
 # !python3 uk_daily_deaths_nhs.py
+# -
 
 # ## Looking Inside Downloaded Zip Files
 
