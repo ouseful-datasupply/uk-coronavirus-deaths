@@ -121,7 +121,7 @@ def ons_weeklies(ons_weekly, typ):
     colnames[1] = 'Age'
     print('to A')
     rows, cols = np.where(ons_weekly == 'Deaths by age group')
-    print('to B', row, cols)
+    print('to B', rows, cols)
     _rows, _ = np.where(ons_weekly == '90+')
     _ix = rows[0]
     print('to C', _rows)
