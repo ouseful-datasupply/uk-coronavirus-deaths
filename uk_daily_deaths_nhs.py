@@ -605,11 +605,11 @@ weeklytable_file = lahtable_link#.split('/')[-1]
 weeklytable_file
 
 ons_weekly_url = f'https://www.ons.gov.uk{weeklytable_file}'
-ons_weekly_url
+print(ons_weekly_url)
 
 
 # +
-r = requests.get(ons_weekly_url)
+r = requests.get(ons_weekly_url, allow_redirects=True)
 
 fn = ons_weekly_url.split('/')[-1]
  
@@ -717,7 +717,7 @@ ons_death_reg_url = f'https://www.ons.gov.uk{lahtable_file}'
 ons_death_reg_url
 
 # +
-r = requests.get(ons_death_reg_url)
+r = requests.get(ons_death_reg_url, allow_redirects=True)
 
 fn = ons_death_reg_url.split('/')[-1]
  
