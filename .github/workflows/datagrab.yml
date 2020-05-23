@@ -30,7 +30,7 @@ jobs:
         pip install -r requirements.txt
     - name: Grab data
       run: |
-        rm -f nhs_dailies.db
+        #rm -f nhs_dailies.db
         python uk_daily_deaths_nhs.py
     - name: Commit and push
       run: |-
