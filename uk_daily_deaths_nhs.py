@@ -143,7 +143,7 @@ def ons_weeklies(ons_weekly, typ):
             ons_weekly_long[t].drop(columns=dropper, inplace=True)
         ons_weekly_long[t] = ons_weekly_long[t].melt(id_vars=['Age'], var_name='Date', value_name='value')
         ons_weekly_long[t]['measure'] = typ
-        display(ons_weekly_long[t])
+        print(ons_weekly_long[t])
         ons_weekly_long[t]['Date'] = pd.to_datetime(ons_weekly_long[t]['Date'])
     print('to F', tables)
     ons_weekly_long['Any'] = pd.DataFrame()
