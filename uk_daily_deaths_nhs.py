@@ -604,7 +604,7 @@ for link in soup.find_all('a'):
 weeklytable_file = lahtable_link#.split('/')[-1]
 weeklytable_file
 
-ons_weekly_url = f'https://www.ons.gov.uk/{weeklytable_file}'
+ons_weekly_url = f'https://www.ons.gov.uk{weeklytable_file}'
 ons_weekly_url
 
 
