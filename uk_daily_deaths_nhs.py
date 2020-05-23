@@ -627,13 +627,15 @@ ons_sheet_names = ons_sheets.keys()
 ons_sheet_names
 # -
 
+print('To here 1..')
 ons_weekly_reg = ons_sheets['Covid-19 - Weekly registrations']
 ons_weekly_reg.head()
 
+print('To here 2..')
 ons_weekly_occ = ons_sheets['Covid-19 - Weekly occurrences']
 ons_weekly_occ.head()
 
-
+print('To here 3..')
 def ons_weeklies(ons_weekly, typ):
     ons_weekly_long = {}
     rows, cols = np.where(ons_weekly == 'Week ended')
@@ -673,38 +675,48 @@ def ons_weeklies(ons_weekly, typ):
     
     return ons_weekly_long
 
+print('To here 4..')
 ons_weekly_reg_long = ons_weeklies(ons_weekly_reg, 'Weekly registrations')
 ons_weekly_reg_long['Females']
 
 # + tags=["active-ipynb"]
 # ons_weekly_reg_long['Any']
+
+# + tags=["active-ipynb"]
+# ons_weekly_occ
 # -
 
-ons_weekly_occ
-
+print('To here 5..')
 ons_weekly_occ_long = ons_weeklies(ons_weekly_occ, 'Weekly occurrences')
 ons_weekly_occ_long['Males']
 
+print('To here 6..')
 ons_weekly_all = ons_sheets['Weekly figures 2020']
 ons_weekly_all.head()
 
+print('To here 7..')
 ons_weekly_all_long = ons_weeklies(ons_weekly_all, 'Weekly all mortality')
 ons_weekly_all_long['Males']
 
 # Add to database...
 
 # +
+print('To here 8..')
 _table = 'ons_deaths'
 
 ons_weekly_occ_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 9..')
 ons_weekly_reg_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 10..')
 ons_weekly_all_long['Any'].to_sql(_table, DB.conn, index=False, if_exists='append')
+print('To here 11..')
 # -
 
 # ### ONS Death Registrations, 2020
 #
 # https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard
 
+print('To here 12..')
 base='https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/causesofdeath/datasets/deathregistrationsandoccurrencesbylocalauthorityandhealthboard'
 page = requests.get(base, allow_redirects=True)
 soup = BeautifulSoup(page.text, 'lxml')
@@ -717,10 +729,12 @@ for link in soup.find_all('a'):
 lahtable_file = lahtable_link#.split('/')[-1]
 lahtable_file
 
+print('To here 13..')
 ons_death_reg_url = f'https://www.ons.gov.uk{lahtable_file}'
 ons_death_reg_url
 
 # +
+print('To here 14..')
 r = requests.get(ons_death_reg_url, allow_redirects=True)
 
 fn = ons_death_reg_url.split('/')[-1]
@@ -735,11 +749,13 @@ ons_reg_sheet_names = ons_reg_sheets.keys()
 ons_reg_sheet_names
 # -
 
+print('To here 15..')
 ons_death_reg = ons_reg_sheets['Registrations - All data']
 ons_death_reg_metadata = ons_death_reg.iloc[0, 0]
 ons_death_reg_metadata
 
 # +
+print('To here 16..')
 from parse import parse
 import dateparser
 
@@ -758,6 +774,7 @@ ons_death_reg['Registered up to'] = upto
 ons_death_reg
 
 # +
+print('To here 17..')
 ons_death_occ = ons_reg_sheets['Occurrences - All data']
 ons_death_occ_metadata = ons_death_occ.iloc[0, 0]
 ons_death_occ_metadata
@@ -784,14 +801,15 @@ ons_death_occ.columns = colnames
 ons_death_occ['Occurred up to'] = upto_occ
 ons_death_occ['Registered up to'] = upto_reg
 ons_death_occ
+# -
 
-# +
+print('To here 18..')
 _table = 'ons_deaths_reg'
 ons_death_reg.to_sql(_table, DB.conn, index=False, if_exists='replace')
-
+print('To here 19..')
 _table = 'ons_deaths_reg_occ'
 ons_death_occ.to_sql(_table, DB.conn, index=False, if_exists='replace')
-# -
+print('To here 20..')
 
 # ## Deployment via datasette
 #
