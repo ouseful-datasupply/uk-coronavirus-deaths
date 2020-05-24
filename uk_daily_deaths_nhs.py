@@ -32,7 +32,7 @@ try:
 except:
     already_processed = []
     
-already_processed  
+print("already processed", already_processed)
 # -
 
 # Daily reports are published as an Excel spreadhseet linked from the following page:
@@ -42,11 +42,7 @@ url = 'https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-dai
 
 # Load the page:
 
-# +
 import requests
-
-
-# -
 
 from bs4 import BeautifulSoup, SoupStrainer
 
@@ -307,6 +303,7 @@ for link in soup.find("article", {"class": "rich-text"}).find_all('a'):
         weekly_totals_link =  link.get('href')
     elif link.text.startswith('COVID 19 total announced deaths'):
         totals_link =  link.get('href')
+links = [l for l in links if l not in already_processed]
 links
 
 import numpy as np
