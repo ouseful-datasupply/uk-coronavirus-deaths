@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'Auto-updated UK CV deaths db')" 
     steps:
     - name: Check out repo
       uses: actions/checkout@v2
@@ -33,11 +34,11 @@ jobs:
         #rm -f nhs_dailies.db
         git config --global user.email "uk-cv-deaths-bot@example.com"
         git config --global user.name "uk-cv-deaths-bot"
-        test -f nhs_dailies.db || (touch nhs_dailies.db && git add nhs_dailies.db && git commit -m "Updated UK CV deaths db")
+        test -f nhs_dailies.db || (touch nhs_dailies.db && git add nhs_dailies.db && git commit -m "New db")
         python uk_daily_deaths_nhs.py
     - name: Commit and push
       run: |
-        git diff --quiet || (git add nhs_dailies.db && git commit -m "Updated UK CV deaths db")
+        git diff --quiet || (git add nhs_dailies.db && git commit -m "Auto-updated UK CV deaths db")
         git push
     - name: Setup Node.js
       uses: actions/setup-node@v1
