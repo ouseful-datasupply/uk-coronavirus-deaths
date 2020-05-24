@@ -24,7 +24,7 @@
 import sqlite_utils
 # #!rm nhs_dailies.db
 DB = sqlite_utils.Database("nhs_dailies.db")
-processed = DB['processed']
+#processed = DB['processed']
 # Start on a mechanism for only downloading things we haven't already grabbed
 # Need a better way to handle query onto table if it doesn't exist yet
 try:
@@ -34,11 +34,6 @@ except:
     
 print("already processed", already_processed)
 # -
-
-# Daily reports are published as an Excel spreadhseet linked from the following page:
-
-# Reporting page
-url = 'https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-daily-deaths/'
 
 # Load the page:
 
@@ -289,10 +284,17 @@ print('To here 20..')
 #
 # Get the links...
 
+# Daily reports are published as an Excel spreadhseet linked from the following page:
+
+# Reporting page
+url = 'https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-daily-deaths/'
+
 page = requests.get(url)
 soup = BeautifulSoup(page.text)
 
 # Get the relevant links to the daily spreadseets:
+
+already_processed
 
 links = {}
 for link in soup.find("article", {"class": "rich-text"}).find_all('a'):
@@ -303,7 +305,7 @@ for link in soup.find("article", {"class": "rich-text"}).find_all('a'):
         weekly_totals_link =  link.get('href')
     elif link.text.startswith('COVID 19 total announced deaths'):
         totals_link =  link.get('href')
-links = [l for l in links if l not in already_processed]
+links = {l:links[l] for l in links if l not in already_processed}
 links
 
 import numpy as np
