@@ -24,7 +24,7 @@
 import sqlite_utils
 # #!rm nhs_dailies.db
 DB = sqlite_utils.Database("nhs_dailies.db")
-#processed = DB['processed']
+processed = DB['processed']
 # Start on a mechanism for only downloading things we haven't already grabbed
 # Need a better way to handle query onto table if it doesn't exist yet
 try:
@@ -456,14 +456,16 @@ sheet_aliases = {
 #COVID19 all deaths by condition
 
 def cleaner(sheets):
+    print('Entering cleaner...')
     for sheet in sheets:
+        print(f"Trying sheet...{sheet}")
         #if 'chart' in sheet or 'no pos' in sheet or 'condition' in sheet:
         #    continue
         if sheet not in sheet_aliases or sheet_aliases[sheet]=='ignore':
             continue
         rows, cols = np.where(sheets[sheet] == 'Published:')
         published_date = sheets[sheet].iat[rows[0], cols[0]+1]
-        print('1',sheet_aliases[sheet])
+
         if 'age' in sheet or 'gender' in sheet_aliases[sheet]:
             rows, cols = np.where(sheets[sheet] == 'Age group')
             #print((rows, cols))
@@ -479,7 +481,6 @@ def cleaner(sheets):
             rows, cols = np.where(sheets[sheet] == 'NHS England Region')
             #print((sheet, rows, cols))
             _ix= rows[0] #ix[sheet][0]
-
         colnames = sheets[sheet].iloc[_ix]
         sheets[sheet] = sheets[sheet].iloc[_ix+3:]
         sheets[sheet].columns = colnames
@@ -489,12 +490,14 @@ def cleaner(sheets):
         #display(f'Checking: {sheet}')
         sheets[sheet]['Published'] = published_date
         sheets[sheet].reset_index(inplace=True, drop=True)
-        
+
         # Drop lines after Notes
         rows, cols = np.where(sheets[sheet] == 'Notes:')
+
         if rows:
             sheets[sheet].drop(sheets[sheet].index[rows[0]:], inplace=True)
          #sheets[sheet].dropna(axis=0, subset=[sheets[sheet].columns[0]], inplace=True)
+
     return sheets
 
 
@@ -510,17 +513,20 @@ for link in links:
     if link in already_processed:
         continue
     try:
-        print(link)
         sheets = pd.read_excel(links[link], sheet_name=None)
+
         for k in sheets.keys():
             if k not in tabs:
                 tabs.append(k)
         sheets = cleaner(sheets)
+
         data[link] = sheets
+
         processed.insert({"reference": link})
+
     except:
         print("Broke with sheets:", sheets.keys())
-        exit(-1)
+        #exit(-1)
 
 
 # + tags=["active-ipynb"]
