@@ -31,7 +31,9 @@ jobs:
         pip install -r requirements.txt
     - name: Grab data
       run: |
-        #rm -f nhs_dailies.db
+        # For some reason, we donlt read anything from processed table
+        # so grab all the data every time :-(
+        rm -f nhs_dailies.db
         git config --global user.email "uk-cv-deaths-bot@example.com"
         git config --global user.name "uk-cv-deaths-bot"
         test -f nhs_dailies.db || (touch nhs_dailies.db && git add nhs_dailies.db && git commit -m "New db")
